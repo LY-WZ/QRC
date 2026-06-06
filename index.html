@@ -1,191 +1,230 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+--color-green-600<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Generator</title>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <title>二维码生成器</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            margin: 0;
-            padding: 20px;
-            color: #333;
+            background-color: #f4f6f8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
-        .container {
-            max-width: 600px;
-            margin: 40px auto;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-            overflow: hidden;
-        }
-        header {
-            background: #4a6cff;
-            color: white;
-            padding: 25px;
-            text-align: center;
-        }
-        .content {
-            padding: 30px;
-        }
-        label {
-            display: block;
-            margin: 16px 0 6px 0;
-            font-weight: 600;
-        }
-        input, select, button {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-        }
-        .row {
-            display: flex;
-            gap: 12px;
-        }
-        .row > div { flex: 1; }
-        button {
-            background: #4a6cff;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            padding: 14px;
-            margin-top: 10px;
-        }
-        button:hover { background: #3b5be8; }
-        #qrcode {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 30px auto;
-            padding: 25px;
-            background: #f8f9fa;
-            border-radius: 12px;
-            min-height: 340px;
-            border: 1px solid #eee;
-        }
-        footer {
-            text-align: center;
-            padding: 18px;
-            font-size: 14px;
-            color: #666;
+        /* 核心修复样式：强制让库生成的 Canvas 和 Img 自适应父容器，绝不跳出 */
+        #qrcode canvas, #qrcode img {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: contain;
+            margin: auto;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>QR Code Generator</h1>
+
+    <div class="max-w-5xl mx-auto px-4 py-10">
+        <header class="flex justify-between items-center bg-white shadow-sm rounded-xl p-4 mb-8">
+            <div class="flex items-center space-x-3">
+                <div class="bg-green-600 text-white p-2 rounded-lg font-bold text-lg">QR</div>
+                <h1 class="text-xl font-bold text-gray-800">文本二维码生成工具</h1>
+            </div>
+            <span class="text-sm text-gray-500">纯前端本地高效生成</span>
         </header>
-        <div class="content">
-            <label>Content to Encode</label>
-            <input type="text" id="text" placeholder="https://example.com or any text">
 
-            <div class="row">
-                <div>
-                    <label>Error Correction</label>
-                    <select id="errorCorrection">
-                        <option value="L">L - Low (7%)</option>
-                        <option value="M" selected>M - Medium (15%) ★ Recommended</option>
-                        <option value="Q">Q - Quartile (25%)</option>
-                        <option value="H">H - High (30%)</option>
-                    </select>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            <div class="md:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="w-1 h-5 bg-green-500 rounded mr-2 inline-block"></span>
+                    输入文本内容
+                </h2>
+                
+                <textarea id="text-input" rows="8" 
+                    class="w-full p-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition text-gray-700 placeholder-gray-400"
+                    placeholder="请输入您想生成二维码的文字、网址、或排版内容..."></textarea>
+                
+                <div class="mt-6 border-t border-gray-100 pt-6">
+                    <h3 class="text-sm font-medium text-gray-600 mb-3">二维码参数设置</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">尺寸大小 (像素)</label>
+                            <select id="qr-size" class="w-full bg-gray-50 border border-gray-200 rounded-md p-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="150">150 x 150</option>
+                                <option value="200" selected>200 x 200</option>
+                                <option value="250">250 x 250</option>
+                                <option value="300">300 x 300</option>
+                                <option value="400">400 x 400</option>
+                                <option value="500">500 x 500</option>
+                                <option value="custom">自定义大小...</option>
+                            </select>
+                            
+                            <div id="custom-size-container" class="mt-2 flex items-center space-x-2 hidden">
+                                <input type="number" id="custom-size-input" min="50" max="2000" value="600" 
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-md p-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    placeholder="输入像素值 (50-2000)">
+                                <span class="text-xs text-gray-400 shrink-0">px</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">容错率 (容易损毁或有Logo时选高)</label>
+                            <select id="qr-correct" class="w-full bg-gray-50 border border-gray-200 rounded-md p-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="L">L (7% 容错 - 常规)</option>
+                                <option value="M" selected>M (15% 容错 - 推荐)</option>
+                                <option value="Q">Q (25% 容错)</option>
+                                <option value="H">H (30% 容错 - 高)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label>Size (pixels)</label>
-                    <select id="size">
-                        <option value="200" selected>200×200</option>
-                        <option value="300">300×300</option>
-                        <option value="400">400×400</option>
-                        <option value="500">500×500</option>
-                    </select>
+
+                <div class="mt-6 flex justify-end">
+                    <button id="generate-btn" class="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-2.5 rounded-lg transition shadow-md hover:shadow-lg cursor-pointer">
+                        生成二维码
+                    </button>
                 </div>
             </div>
 
-            <div class="row">
-                <div>
-                    <label>Foreground Color</label>
-                    <input type="color" id="fgColor" value="#000000">
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col items-center justify-between min-h-[420px]">
+                <div class="w-full text-center">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-6 flex items-center justify-center">
+                        二维码预览
+                    </h2>
+                    
+                    <div class="bg-gray-50 rounded-lg border border-dashed border-gray-200 relative w-[260px] h-[260px] mx-auto flex items-center justify-center p-4 overflow-hidden">
+                        <div id="qrcode" class="w-full h-full flex items-center justify-center"></div>
+                        <div id="placeholder-text" class="text-gray-400 text-sm absolute">暂无内容，请输入后生成</div>
+                    </div>
                 </div>
-                <div>
-                    <label>Background Color</label>
-                    <input type="color" id="bgColor" value="#ffffff">
+
+                <div class="w-full mt-6 space-y-3">
+                    <button id="download-btn" disabled class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 rounded-lg transition flex justify-center items-center cursor-pointer">
+                        下载二维码图片
+                    </button>
+                    <button id="clear-btn" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-2 rounded-lg transition cursor-pointer">
+                        清空内容
+                    </button>
                 </div>
             </div>
 
-            <button onclick="generateQRCode()">Generate QR Code</button>
-
-            <div id="qrcode"></div>
-
-            <div style="display:flex; gap:10px; margin-top:15px;">
-                <button onclick="downloadQRCode()" id="downloadBtn" style="display:none; flex:1; background:#28a745;">
-                    Download PNG
-                </button>
-                <button onclick="copyToClipboard()" id="copyBtn" style="display:none; flex:1; background:#6c757d;">
-                    Copy to Clipboard
-                </button>
-            </div>
         </div>
-        <footer>
-            Simple & Clean QR Code Generator
-        </footer>
     </div>
 
     <script>
-        let currentCanvas = null;
+        const textInput = document.getElementById('text-input');
+        const qrSize = document.getElementById('qr-size');
+        const customSizeContainer = document.getElementById('custom-size-container');
+        const customSizeInput = document.getElementById('custom-size-input');
+        const qrCorrect = document.getElementById('qr-correct');
+        const generateBtn = document.getElementById('generate-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const qrcodeContainer = document.getElementById('qrcode');
+        const placeholderText = document.getElementById('placeholder-text');
 
+        let qrCodeInstance = null;
+
+        // 获取当前计算后的真实期望尺寸
+        function getSelectedSize() {
+            if (qrSize.value === 'custom') {
+                let customVal = parseInt(customSizeInput.value) || 200;
+                // 限制边界防止极端数据挂掉
+                if (customVal < 50) customVal = 50;
+                if (customVal > 2000) customVal = 2000;
+                return customVal;
+            }
+            return parseInt(qrSize.value);
+        }
+
+        // 生成二维码的方法
         function generateQRCode() {
-            const text = document.getElementById("text").value.trim();
-            const qrcodeDiv = document.getElementById("qrcode");
-            qrcodeDiv.innerHTML = "";
+            const text = textInput.value.trim();
+            
+            // 如果输入框为空，则清空二维码并恢复初始状态
+            if (!text) {
+                qrcodeContainer.innerHTML = '';
+                placeholderText.style.display = 'block';
+                downloadBtn.disabled = true;
+                return;
+            }
 
-            const size = parseInt(document.getElementById("size").value);
-            const errorLevel = document.getElementById("errorCorrection").value;
-            const fg = document.getElementById("fgColor").value;
-            const bg = document.getElementById("bgColor").value;
+            // 隐藏提示词
+            placeholderText.style.display = 'none';
+            qrcodeContainer.innerHTML = ''; // 清空上一次的二维码
 
-            new QRCode(qrcodeDiv, {
+            const size = getSelectedSize();
+            const correctLevel = QRCode.CorrectLevel[qrCorrect.value];
+
+            // 实例化 QRCode 库（生成指定的真实大尺寸）
+            qrCodeInstance = new QRCode(qrcodeContainer, {
                 text: text,
                 width: size,
                 height: size,
-                colorDark: fg,
-                colorLight: bg,
-                correctLevel: QRCode.CorrectLevel[errorLevel]
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: correctLevel
             });
 
-            currentCanvas = qrcodeDiv.querySelector("canvas");
-
-            document.getElementById("downloadBtn").style.display = "block";
-            document.getElementById("copyBtn").style.display = "block";
+            // 激活下载按钮
+            downloadBtn.disabled = false;
         }
 
+        // 下载二维码图片的方法
         function downloadQRCode() {
-            if (!currentCanvas) return;
-            const link = document.createElement("a");
-            link.download = "qrcode.png";
-            link.href = currentCanvas.toDataURL("image/png");
-            link.click();
+            // 优先获取库生成的 img 标签，如果没有（部分旧浏览器）则获取 canvas
+            const img = qrcodeContainer.querySelector('img');
+            const canvas = qrcodeContainer.querySelector('canvas');
+            let downloadSrc = '';
+
+            if (img && img.src && img.src.startsWith('data:image')) {
+                downloadSrc = img.src;
+            } else if (canvas) {
+                downloadSrc = canvas.toDataURL('image/png');
+            }
+
+            if (!downloadSrc) return;
+            
+            // 创建虚拟 <a> 标签触发无缝下载
+            const downloadLink = document.createElement('a');
+            downloadLink.href = downloadSrc;
+            downloadLink.download = `qrcode_${getSelectedSize()}x${getSelectedSize()}_${Date.now()}.png`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
         }
 
-        function copyToClipboard() {
-            if (!currentCanvas) return;
-            currentCanvas.toBlob(blob => {
-                navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
-                    .then(() => alert("✅ QR Code copied to clipboard!"));
-            });
-        }
-
-        // Enter key support
-        document.getElementById("text").addEventListener("keypress", e => {
-            if (e.key === "Enter") generateQRCode();
+        // 切换下拉菜单时判断是否展示“自定义尺寸输入框”
+        qrSize.addEventListener('change', () => {
+            if (qrSize.value === 'custom') {
+                customSizeContainer.classList.remove('hidden');
+            } else {
+                customSizeContainer.classList.add('hidden');
+            }
+            
+            // 自动触发更新
+            if(textInput.value.trim()) generateQRCode();
         });
 
-        // Auto generate on load
-        window.onload = generateQRCode;
+        // 监听自定义尺寸数字的变化
+        customSizeInput.addEventListener('input', () => {
+            if(textInput.value.trim()) generateQRCode();
+        });
+
+        // 其它原有事件绑定
+        generateBtn.addEventListener('click', generateQRCode);
+        qrCorrect.addEventListener('change', () => { if(textInput.value.trim()) generateQRCode(); });
+        downloadBtn.addEventListener('click', downloadQRCode);
+
+        // 清空按钮
+        clearBtn.addEventListener('click', () => {
+            textInput.value = '';
+            generateQRCode();
+        });
+
+        // 快捷生成
+        textInput.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                generateQRCode();
+            }
+        });
     </script>
 </body>
 </html>
