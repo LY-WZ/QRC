@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        header {
+            background: #4a6cff;
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        .content {
+            padding: 30px;
+        }
+        label {
+            display: block;
+            margin: 16px 0 6px 0;
+            font-weight: 600;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+        .row > div { flex: 1; }
+        button {
+            background: #4a6cff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 14px;
+            margin-top: 10px;
+        }
+        button:hover { background: #3b5be8; }
+        #qrcode {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px auto;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            min-height: 340px;
+            border: 1px solid #eee;
+        }
+        footer {
+            text-align: center;
+            padding: 18px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>QR Code Generator</h1>
+        </header>
+        <div class="content">
+            <label>Content to Encode</label>
+            <input type="text" id="text" placeholder="https://example.com or any text">
+
+            <div class="row">
+                <div>
+                    <label>Error Correction</label>
+                    <select id="errorCorrection">
+                        <option value="L">L - Low (7%)</option>
+                        <option value="M" selected>M - Medium (15%) ★ Recommended</option>
+                        <option value="Q">Q - Quartile (25%)</option>
+                        <option value="H">H - High (30%)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Size (pixels)</label>
+                    <select id="size">
+                        <option value="200" selected>200×200</option>
+                        <option value="300">300×300</option>
+                        <option value="400">400×400</option>
+                        <option value="500">500×500</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div>
+                    <label>Foreground Color</label>
+                    <input type="color" id="fgColor" value="#000000">
+                </div>
+                <div>
+                    <label>Background Color</label>
+                    <input type="color" id="bgColor" value="#ffffff">
+                </div>
+            </div>
+
+            <button onclick="generateQRCode()">Generate QR Code</button>
+
+            <div id="qrcode"></div>
+
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button onclick="downloadQRCode()" id="downloadBtn" style="display:none; flex:1; background:#28a745;">
+                    Download PNG
+                </button>
+                <button onclick="copyToClipboard()" id="copyBtn" style="display:none; flex:1; background:#6c757d;">
+                    Copy to Clipboard
+                </button>
+            </div>
+        </div>
+        <footer>
+            Simple & Clean QR Code Generator
+        </footer>
+    </div>
+
+    <script>
+        let currentCanvas = null;
+
+        function generateQRCode() {
+            const text = document.getElementById("text").value.trim();
+            const qrcodeDiv = document.getElementById("qrcode");
+            qrcodeDiv.innerHTML = "";
+
+            const size = parseInt(document.getElementById("size").value);
+            const errorLevel = document.getElementById("errorCorrection").value;
+            const fg = document.getElementById("fgColor").value;
+            const bg = document.getElementById("bgColor").value;
+
+            new QRCode(qrcodeDiv, {
+                text: text,
+                width: size,
+                height: size,
+                colorDark: fg,
+                colorLight: bg,
+                correctLevel: QRCode.CorrectLevel[errorLevel]
+            });
+
+            currentCanvas = qrcodeDiv.querySelector("canvas");
+
+            document.getElementById("downloadBtn").style.display = "block";
+            document.getElementById("copyBtn").style.display = "block";
+        }
+
+        function downloadQRCode() {
+            if (!currentCanvas) return;
+            const link = document.createElement("a");
+            link.download = "qrcode.png";
+            link.href = currentCanvas.toDataURL("image/png");
+            link.click();
+        }
+
+        function copyToClipboard() {
+            if (!currentCanvas) return;
+            currentCanvas.toBlob(blob => {
+                navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+                    .then(() => alert("✅ QR Code copied to clipboard!"));
+            });
+        }
+
+        // Enter key support
+        document.getElementById("text").addEventListener("keypress", e => {
+            if (e.key === "Enter") generateQRCode();
+        });
+
+        // Auto generate on load
+        window.onload = generateQRCode;
+    </script>
+</body>
+</html>
