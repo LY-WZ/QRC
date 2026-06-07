@@ -1,230 +1,491 @@
 <!DOCTYPE html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>二维码生成器</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <title>文本二维码生成器</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <style>
-        body {
-            background-color: #f4f6f8;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        :root {
+            --bg: #eef1f5;
+            --surface: #ffffff;
+            --surface-2: #f6f8fa;
+            --border: #e2e8f0;
+            --border-focus: #22c55e;
+            --accent: #16a34a;
+            --accent-hover: #15803d;
+            --accent-light: #dcfce7;
+            --text-primary: #1a1f2e;
+            --text-secondary: #4b5563;
+            --text-muted: #9ca3af;
+            --blue: #2563eb;
+            --blue-hover: #1d4ed8;
+            --radius: 18px;
+            --radius-sm: 10px;
+            --shadow: 0 2px 8px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.07);
+            --shadow-sm: 0 1px 4px rgba(0,0,0,0.07);
         }
-        /* 核心修复样式：强制让库生成的 Canvas 和 Img 自适应父容器，绝不跳出 */
-        #qrcode canvas, #qrcode img {
-            max-width: 100% !important;
-            max-height: 100% !important;
-            object-fit: contain;
-            margin: auto;
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 32px 24px 64px;
+        }
+        .page { max-width: 1400px; margin: 0 auto; }
+
+        /* Header */
+        header {
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 22px 36px;
+            margin-bottom: 36px; box-shadow: var(--shadow-sm);
+        }
+        .logo { display: flex; align-items: center; gap: 16px; }
+        .logo-icon {
+            background: var(--accent); color: #fff;
+            width: 52px; height: 52px; border-radius: 13px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Space Mono', monospace; font-weight: 700; font-size: 16px;
+            letter-spacing: -0.5px; flex-shrink: 0;
+        }
+        .logo-title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+        .logo-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+        .badge {
+            font-size: 12px; color: var(--accent); background: var(--accent-light);
+            border-radius: 20px; padding: 6px 16px; font-weight: 500;
+        }
+
+        /* Grid — 左侧宽，右侧固定刚好容纳二维码 */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 28px;
+            align-items: stretch;
+        }
+        @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+
+        /* Card */
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 36px; box-shadow: var(--shadow);
+            display: flex; flex-direction: column;  /* 内部纵向 flex */
+        }
+        .section-title {
+            font-size: 13px; font-weight: 600; color: var(--text-secondary);
+            letter-spacing: 0.5px; text-transform: uppercase;
+            margin-bottom: 18px; display: flex; align-items: center; gap: 10px;
+            flex-shrink: 0;
+        }
+        .section-title::before {
+            content: ''; display: inline-block; width: 3px; height: 16px;
+            background: var(--accent); border-radius: 2px;
+        }
+
+        textarea {
+            width: 100%;
+            flex: 1;               /* 撑满左卡片剩余高度 */
+            min-height: 180px;
+            resize: none;          /* 等高模式下不需要手动拖拽 */
+            border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+            padding: 18px 20px; font-size: 15px; font-family: inherit;
+            color: var(--text-primary); background: var(--surface-2);
+            transition: border-color .2s, box-shadow .2s;
+            outline: none; line-height: 1.75;
+        }
+        textarea:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 4px rgba(34,197,94,0.10); background: #fff;
+        }
+        textarea::placeholder { color: var(--text-muted); }
+
+        .params {
+            margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+            flex-shrink: 0;
+        }
+        @media (max-width: 560px) { .params { grid-template-columns: 1fr; } }
+
+        label.field-label {
+            display: block; font-size: 12px; font-weight: 500;
+            color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.3px;
+        }
+        select, input[type="number"] {
+            width: 100%; background: var(--surface-2);
+            border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+            padding: 11px 14px; font-size: 14px; font-family: inherit;
+            color: var(--text-primary); outline: none; transition: border-color .2s; appearance: auto;
+        }
+        select:focus, input[type="number"]:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 4px rgba(34,197,94,0.10);
+        }
+        .custom-size-row {
+            display: flex; align-items: center; gap: 10px; margin-top: 10px;
+        }
+        .custom-size-row input { flex: 1; }
+        .custom-size-row span { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+        .btn-primary {
+            background: var(--accent); color: #fff; border: none;
+            border-radius: var(--radius-sm); padding: 13px 36px;
+            font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer;
+            transition: background .18s, transform .1s, box-shadow .18s;
+            box-shadow: 0 2px 10px rgba(22,163,74,0.28);
+        }
+        .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 4px 16px rgba(22,163,74,0.36); }
+        .btn-primary:active { transform: scale(0.98); }
+
+        .btn-blue {
+            width: 100%; background: var(--blue); color: #fff; border: none;
+            border-radius: var(--radius-sm); padding: 13px;
+            font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+            transition: background .18s;
+        }
+        .btn-blue:hover:not(:disabled) { background: var(--blue-hover); }
+        .btn-blue:disabled { background: #c9cdd6; cursor: not-allowed; opacity: .7; }
+
+        .btn-ghost {
+            width: 100%; background: var(--surface-2); color: var(--text-secondary);
+            border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+            padding: 12px; font-size: 14px; font-weight: 500; font-family: inherit;
+            cursor: pointer; transition: background .18s, border-color .18s;
+        }
+        .btn-ghost:hover { background: #eaecf0; border-color: #c8cfd8; }
+
+        .action-row { margin-top: 28px; display: flex; justify-content: flex-end; flex-shrink: 0; }
+
+        .preview-card {
+            display: flex; flex-direction: column; gap: 20px;
+            padding: 28px;  /* 比左侧稍小，突出二维码 */
+        }
+        .preview-title {
+            font-size: 13px; font-weight: 600; color: var(--text-secondary);
+            letter-spacing: 0.5px; text-transform: uppercase;
+            display: flex; align-items: center; gap: 10px;
+            flex-shrink: 0;
+        }
+        .preview-title::before {
+            content: ''; display: inline-block; width: 3px; height: 16px;
+            background: var(--blue); border-radius: 2px;
+        }
+
+        /*
+         * QR 预览容器 — 取消固定 aspect-ratio，改用 flex:1 撑满剩余高度，
+         * 与左侧卡片自然等高，二维码居中显示。
+         */
+        .qr-wrap {
+            flex: 1;               /* 填满右列剩余空间 */
+            min-height: 240px;     /* 防止内容过少时塌缩 */
+            background: var(--surface-2);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 隐藏 qrcodejs 的真实输出，仅用于生成数据 */
+        #qrcode-hidden {
+            position: absolute;
+            left: -9999px; top: -9999px;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* 展示用 canvas：最大占容器 85%，居中，不溢出 */
+        #qr-display {
+            max-width: 85%;
+            max-height: 85%;
+            width: auto;
+            height: auto;
+            image-rendering: pixelated;
+            display: none;
+        }
+
+        .placeholder-msg {
+            display: flex; flex-direction: column;
+            align-items: center; gap: 12px;
+            color: var(--text-muted); font-size: 14px;
+            position: absolute; pointer-events: none;
+            text-align: center; padding: 20px;
+        }
+        .placeholder-msg svg { opacity: .3; }
+
+        .qr-actions { display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+        .qr-meta {
+            font-size: 12px; color: var(--text-muted); text-align: center;
+            font-family: 'Space Mono', monospace; min-height: 18px;
+            flex-shrink: 0;
+        }
+        .hint {
+            font-size: 12px; color: var(--text-muted); margin-top: 12px;
+            display: flex; align-items: center; gap: 6px;
+            flex-shrink: 0;
+        }
+        .hint kbd {
+            background: var(--surface-2); border: 1px solid var(--border);
+            border-radius: 4px; padding: 1px 6px; font-size: 11px;
+            font-family: 'Space Mono', monospace; color: var(--text-secondary);
         }
     </style>
 </head>
 <body>
-
-    <div class="max-w-5xl mx-auto px-4 py-10">
-        <header class="flex justify-between items-center bg-white shadow-sm rounded-xl p-4 mb-8">
-            <div class="flex items-center space-x-3">
-                <div class="bg-green-600 text-white p-2 rounded-lg font-bold text-lg">QR</div>
-                <h1 class="text-xl font-bold text-gray-800">文本二维码生成工具</h1>
+<div class="page">
+    <header>
+        <div class="logo">
+            <div class="logo-icon">QR</div>
+            <div>
+                <div class="logo-title">文本二维码生成器</div>
+                <div class="logo-sub">纯前端本地生成，数据不上传服务器</div>
             </div>
-            <span class="text-sm text-gray-500">纯前端本地高效生成</span>
-        </header>
+        </div>
+        <span class="badge">免费 · 离线可用</span>
+    </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            
-            <div class="md:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
-                    <span class="w-1 h-5 bg-green-500 rounded mr-2 inline-block"></span>
-                    输入文本内容
-                </h2>
-                
-                <textarea id="text-input" rows="8" 
-                    class="w-full p-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition text-gray-700 placeholder-gray-400"
-                    placeholder="请输入您想生成二维码的文字、网址、或排版内容..."></textarea>
-                
-                <div class="mt-6 border-t border-gray-100 pt-6">
-                    <h3 class="text-sm font-medium text-gray-600 mb-3">二维码参数设置</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">尺寸大小 (像素)</label>
-                            <select id="qr-size" class="w-full bg-gray-50 border border-gray-200 rounded-md p-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-                                <option value="150">150 x 150</option>
-                                <option value="200" selected>200 x 200</option>
-                                <option value="250">250 x 250</option>
-                                <option value="300">300 x 300</option>
-                                <option value="400">400 x 400</option>
-                                <option value="500">500 x 500</option>
-                                <option value="custom">自定义大小...</option>
-                            </select>
-                            
-                            <div id="custom-size-container" class="mt-2 flex items-center space-x-2 hidden">
-                                <input type="number" id="custom-size-input" min="50" max="2000" value="600" 
-                                    class="w-full bg-gray-50 border border-gray-200 rounded-md p-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-                                    placeholder="输入像素值 (50-2000)">
-                                <span class="text-xs text-gray-400 shrink-0">px</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">容错率 (容易损毁或有Logo时选高)</label>
-                            <select id="qr-correct" class="w-full bg-gray-50 border border-gray-200 rounded-md p-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-                                <option value="L">L (7% 容错 - 常规)</option>
-                                <option value="M" selected>M (15% 容错 - 推荐)</option>
-                                <option value="Q">Q (25% 容错)</option>
-                                <option value="H">H (30% 容错 - 高)</option>
-                            </select>
-                        </div>
+    <div class="grid">
+        <!-- 左侧：输入区 -->
+        <div class="card">
+            <div class="section-title">输入文本内容</div>
+            <textarea id="text-input"
+                placeholder="请输入要生成二维码的文字、网址或任意内容…&#10;&#10;支持中英文、URL、JSON 等任意格式"></textarea>
+            <p class="hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> 快速生成</p>
+
+            <div class="params">
+                <div>
+                    <label class="field-label" for="qr-size">下载尺寸（像素）</label>
+                    <select id="qr-size">
+                        <option value="150">150 × 150</option>
+                        <option value="200">200 × 200</option>
+                        <option value="250">250 × 250</option>
+                        <option value="300" selected>300 × 300</option>
+                        <option value="400">400 × 400</option>
+                        <option value="500">500 × 500</option>
+                        <option value="custom">自定义大小…</option>
+                    </select>
+                    <div id="custom-size-container" class="custom-size-row" style="display:none">
+                        <input type="number" id="custom-size-input" min="50" max="2000" value="600" placeholder="50–2000">
+                        <span>px</span>
                     </div>
                 </div>
-
-                <div class="mt-6 flex justify-end">
-                    <button id="generate-btn" class="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-2.5 rounded-lg transition shadow-md hover:shadow-lg cursor-pointer">
-                        生成二维码
-                    </button>
+                <div>
+                    <label class="field-label" for="qr-correct">容错率</label>
+                    <select id="qr-correct">
+                        <option value="L">L — 7%（常规）</option>
+                        <option value="M" selected>M — 15%（推荐）</option>
+                        <option value="Q">Q — 25%</option>
+                        <option value="H">H — 30%（高·适合加 Logo）</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col items-center justify-between min-h-[420px]">
-                <div class="w-full text-center">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-6 flex items-center justify-center">
-                        二维码预览
-                    </h2>
-                    
-                    <div class="bg-gray-50 rounded-lg border border-dashed border-gray-200 relative w-[260px] h-[260px] mx-auto flex items-center justify-center p-4 overflow-hidden">
-                        <div id="qrcode" class="w-full h-full flex items-center justify-center"></div>
-                        <div id="placeholder-text" class="text-gray-400 text-sm absolute">暂无内容，请输入后生成</div>
-                    </div>
-                </div>
+            <div class="action-row">
+                <button id="generate-btn" class="btn-primary">生成二维码</button>
+            </div>
+        </div>
 
-                <div class="w-full mt-6 space-y-3">
-                    <button id="download-btn" disabled class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 rounded-lg transition flex justify-center items-center cursor-pointer">
-                        下载二维码图片
-                    </button>
-                    <button id="clear-btn" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-2 rounded-lg transition cursor-pointer">
-                        清空内容
-                    </button>
+        <!-- 右侧：预览区 -->
+        <div class="card preview-card">
+            <div class="preview-title">二维码预览</div>
+
+            <div class="qr-wrap">
+                <!-- qrcodejs 隐藏输出区 -->
+                <div id="qrcode-hidden"></div>
+                <!-- 展示用 canvas（尺寸由 CSS 控制） -->
+                <canvas id="qr-display"></canvas>
+                <!-- 占位提示 -->
+                <div id="placeholder-msg" class="placeholder-msg">
+                    <svg width="64" height="64" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2.5"/>
+                        <rect x="28" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2.5"/>
+                        <rect x="4" y="28" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2.5"/>
+                        <rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" opacity=".4"/>
+                        <rect x="32" y="8" width="8" height="8" rx="1" fill="currentColor" opacity=".4"/>
+                        <rect x="8" y="32" width="8" height="8" rx="1" fill="currentColor" opacity=".4"/>
+                        <rect x="28" y="28" width="4" height="4" rx="0.5" fill="currentColor" opacity=".35"/>
+                        <rect x="36" y="28" width="4" height="4" rx="0.5" fill="currentColor" opacity=".35"/>
+                        <rect x="28" y="36" width="4" height="4" rx="0.5" fill="currentColor" opacity=".35"/>
+                        <rect x="36" y="36" width="4" height="4" rx="0.5" fill="currentColor" opacity=".35"/>
+                    </svg>
+                    <span>输入内容后点击生成</span>
                 </div>
             </div>
 
+            <div id="qr-meta" class="qr-meta"></div>
+
+            <div class="qr-actions">
+                <button id="download-btn" class="btn-blue" disabled>下载二维码图片</button>
+                <button id="clear-btn" class="btn-ghost">清空内容</button>
+            </div>
         </div>
     </div>
+</div>
 
-    <script>
-        const textInput = document.getElementById('text-input');
-        const qrSize = document.getElementById('qr-size');
-        const customSizeContainer = document.getElementById('custom-size-container');
-        const customSizeInput = document.getElementById('custom-size-input');
-        const qrCorrect = document.getElementById('qr-correct');
-        const generateBtn = document.getElementById('generate-btn');
-        const downloadBtn = document.getElementById('download-btn');
-        const clearBtn = document.getElementById('clear-btn');
-        const qrcodeContainer = document.getElementById('qrcode');
-        const placeholderText = document.getElementById('placeholder-text');
+<script>
+    const textInput     = document.getElementById('text-input');
+    const qrSizeSel     = document.getElementById('qr-size');
+    const customBox     = document.getElementById('custom-size-container');
+    const customInput   = document.getElementById('custom-size-input');
+    const qrCorrect     = document.getElementById('qr-correct');
+    const genBtn        = document.getElementById('generate-btn');
+    const dlBtn         = document.getElementById('download-btn');
+    const clearBtn      = document.getElementById('clear-btn');
+    const displayCanvas = document.getElementById('qr-display');
+    const placeholder   = document.getElementById('placeholder-msg');
+    const qrMeta        = document.getElementById('qr-meta');
 
-        let qrCodeInstance = null;
+    let sourceDataUrl = null;   // 下载用原始高清 dataURL
 
-        // 获取当前计算后的真实期望尺寸
-        function getSelectedSize() {
-            if (qrSize.value === 'custom') {
-                let customVal = parseInt(customSizeInput.value) || 200;
-                // 限制边界防止极端数据挂掉
-                if (customVal < 50) customVal = 50;
-                if (customVal > 2000) customVal = 2000;
-                return customVal;
-            }
-            return parseInt(qrSize.value);
+    const EC_MAP = { L: 'L', M: 'M', Q: 'Q', H: 'H' };
+
+    function getSize() {
+        if (qrSizeSel.value === 'custom') {
+            let v = parseInt(customInput.value) || 300;
+            return Math.min(2000, Math.max(50, v));
+        }
+        return parseInt(qrSizeSel.value);
+    }
+
+    function showError(msg) {
+        displayCanvas.style.display = 'none';
+        sourceDataUrl = null;
+        dlBtn.disabled = true;
+        placeholder.style.display = 'flex';
+        placeholder.innerHTML = `
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.4;color:#ef4444">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
+            </svg>
+            <span style="color:#ef4444;font-size:13px;max-width:200px;line-height:1.5">${msg}</span>`;
+        qrMeta.textContent = '';
+    }
+
+    function showPlaceholder() {
+        placeholder.style.display = 'flex';
+        placeholder.innerHTML = `
+            <svg width="64" height="64" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2.5"/>
+                <rect x="28" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2.5"/>
+                <rect x="4" y="28" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2.5"/>
+                <rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" opacity=".4"/>
+                <rect x="32" y="8" width="8" height="8" rx="1" fill="currentColor" opacity=".4"/>
+                <rect x="8" y="32" width="8" height="8" rx="1" fill="currentColor" opacity=".4"/>
+                <rect x="28" y="28" width="4" height="4" rx=".5" fill="currentColor" opacity=".35"/>
+                <rect x="36" y="28" width="4" height="4" rx=".5" fill="currentColor" opacity=".35"/>
+                <rect x="28" y="36" width="4" height="4" rx=".5" fill="currentColor" opacity=".35"/>
+                <rect x="36" y="36" width="4" height="4" rx=".5" fill="currentColor" opacity=".35"/>
+            </svg>
+            <span>输入内容后点击生成</span>`;
+    }
+
+    function generateQRCode() {
+        const text = textInput.value.trim();
+
+        displayCanvas.style.display = 'none';
+        displayCanvas.width = 0;
+        displayCanvas.height = 0;
+        sourceDataUrl = null;
+        qrMeta.textContent = '';
+
+        if (!text) {
+            showPlaceholder();
+            dlBtn.disabled = true;
+            return;
         }
 
-        // 生成二维码的方法
-        function generateQRCode() {
-            const text = textInput.value.trim();
-            
-            // 如果输入框为空，则清空二维码并恢复初始状态
-            if (!text) {
-                qrcodeContainer.innerHTML = '';
-                placeholderText.style.display = 'block';
-                downloadBtn.disabled = true;
-                return;
+        const size = getSize();
+        const ecLevel = EC_MAP[qrCorrect.value] || 'M';
+
+        try {
+            // qrcode-generator: 0 = 自动选择版本，支持所有 Unicode 内容
+            const qr = qrcode(0, ecLevel);
+            qr.addData(text, 'Byte');   // Byte 模式 + UTF-8，支持中文/emoji/任意字符
+            qr.make();
+
+            // 获取模块数（二维码格数）
+            const moduleCount = qr.getModuleCount();
+            const cellSize = Math.floor(size / moduleCount);
+            const margin = Math.floor(cellSize * 1.5);  // 白边约 1.5 格
+            const canvasSize = moduleCount * cellSize + margin * 2;
+
+            // 在离屏 canvas 上绘制高清二维码
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width  = canvasSize;
+            offCanvas.height = canvasSize;
+            const ctx = offCanvas.getContext('2d');
+
+            // 白底
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+            // 绘制每个模块
+            ctx.fillStyle = '#000000';
+            for (let row = 0; row < moduleCount; row++) {
+                for (let col = 0; col < moduleCount; col++) {
+                    if (qr.isDark(row, col)) {
+                        ctx.fillRect(
+                            margin + col * cellSize,
+                            margin + row * cellSize,
+                            cellSize, cellSize
+                        );
+                    }
+                }
             }
 
-            // 隐藏提示词
-            placeholderText.style.display = 'none';
-            qrcodeContainer.innerHTML = ''; // 清空上一次的二维码
+            // 保存高清 dataURL 供下载
+            sourceDataUrl = offCanvas.toDataURL('image/png');
 
-            const size = getSelectedSize();
-            const correctLevel = QRCode.CorrectLevel[qrCorrect.value];
+            // 复制到展示 canvas（CSS 控制显示尺寸）
+            displayCanvas.width  = canvasSize;
+            displayCanvas.height = canvasSize;
+            displayCanvas.getContext('2d').drawImage(offCanvas, 0, 0);
+            placeholder.style.display = 'none';
+            displayCanvas.style.display = 'block';
 
-            // 实例化 QRCode 库（生成指定的真实大尺寸）
-            qrCodeInstance = new QRCode(qrcodeContainer, {
-                text: text,
-                width: size,
-                height: size,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: correctLevel
-            });
+            qrMeta.textContent = `预览自适应 · 下载 ${canvasSize} × ${canvasSize} px`;
+            dlBtn.disabled = false;
 
-            // 激活下载按钮
-            downloadBtn.disabled = false;
-        }
-
-        // 下载二维码图片的方法
-        function downloadQRCode() {
-            // 优先获取库生成的 img 标签，如果没有（部分旧浏览器）则获取 canvas
-            const img = qrcodeContainer.querySelector('img');
-            const canvas = qrcodeContainer.querySelector('canvas');
-            let downloadSrc = '';
-
-            if (img && img.src && img.src.startsWith('data:image')) {
-                downloadSrc = img.src;
-            } else if (canvas) {
-                downloadSrc = canvas.toDataURL('image/png');
-            }
-
-            if (!downloadSrc) return;
-            
-            // 创建虚拟 <a> 标签触发无缝下载
-            const downloadLink = document.createElement('a');
-            downloadLink.href = downloadSrc;
-            downloadLink.download = `qrcode_${getSelectedSize()}x${getSelectedSize()}_${Date.now()}.png`;
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-        }
-
-        // 切换下拉菜单时判断是否展示“自定义尺寸输入框”
-        qrSize.addEventListener('change', () => {
-            if (qrSize.value === 'custom') {
-                customSizeContainer.classList.remove('hidden');
+        } catch (e) {
+            // 内容过长超出二维码容量限制
+            const bytes = new TextEncoder().encode(text).length;
+            const limits = { L: 2953, M: 2331, Q: 1663, H: 1273 };
+            const limit = limits[ecLevel];
+            if (bytes > limit) {
+                showError(`内容过长（${bytes} 字节），当前容错率上限约 ${limit} 字节。<br>请减少内容或降低容错率。`);
             } else {
-                customSizeContainer.classList.add('hidden');
+                showError('生成失败：' + (e.message || '未知错误'));
             }
-            
-            // 自动触发更新
-            if(textInput.value.trim()) generateQRCode();
-        });
+        }
+    }
 
-        // 监听自定义尺寸数字的变化
-        customSizeInput.addEventListener('input', () => {
-            if(textInput.value.trim()) generateQRCode();
-        });
+    function downloadQRCode() {
+        if (!sourceDataUrl) return;
+        const size = getSize();
+        const a = document.createElement('a');
+        a.href = sourceDataUrl;
+        a.download = `qrcode_${size}x${size}_${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
 
-        // 其它原有事件绑定
-        generateBtn.addEventListener('click', generateQRCode);
-        qrCorrect.addEventListener('change', () => { if(textInput.value.trim()) generateQRCode(); });
-        downloadBtn.addEventListener('click', downloadQRCode);
+    qrSizeSel.addEventListener('change', () => {
+        customBox.style.display = qrSizeSel.value === 'custom' ? 'flex' : 'none';
+        if (textInput.value.trim()) generateQRCode();
+    });
+    customInput.addEventListener('input', () => {
+        if (textInput.value.trim()) generateQRCode();
+    });
 
-        // 清空按钮
-        clearBtn.addEventListener('click', () => {
-            textInput.value = '';
-            generateQRCode();
-        });
-
-        // 快捷生成
-        textInput.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                generateQRCode();
-            }
-        });
-    </script>
+    genBtn.addEventListener('click', generateQRCode);
+    qrCorrect.addEventListener('change', () => { if (textInput.value.trim()) generateQRCode(); });
+    dlBtn.addEventListener('click', downloadQRCode);
+    clearBtn.addEventListener('click', () => { textInput.value = ''; showPlaceholder(); displayCanvas.style.display='none'; sourceDataUrl=null; dlBtn.disabled=true; qrMeta.textContent=''; });
+    textInput.addEventListener('keydown', e => {
+        if (e.ctrlKey && e.key === 'Enter') generateQRCode();
+    });
+</script>
 </body>
 </html>
